@@ -1,0 +1,42 @@
+#https://github.com/bitnami/bitnami-docker-mongodb/blob/master/docker-compose.yml
+version: '2'
+
+services:
+  mongodb:
+    image: docker.io/bitnami/mongodb:4.4
+    ports:
+      - "27017:27017"
+
+  #for local development
+  fake_datadog:
+    build:
+      context: ./fake_datadog
+    depends_on:
+      - mongodb
+    environment:
+      MONGODB_HOST: mongodb
+    ports:
+      - "5000:80"
+
+  redis:
+    image: redis
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "redis", "service": "redis"}]'
+
+  datadog_agent:
+    image: datadog/agent:7.31.1
+    depends_on:
+      - fake_datadog
+      - redis
+    links:
+     - redis # Connect the Datadog Agent container to the Redis container
+    environment:
+     - DD_API_KEY=xxxxx
+     - DD_SITE=fake_datadog
+     - DD_LOGS_ENABLED=false
+     - DD_DD_URL=http://fake_datadog
+    volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+     - /proc/:/host/proc/:ro
+     - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+     - /var/lib/docker/containers:/var/lib/docker/containers:ro

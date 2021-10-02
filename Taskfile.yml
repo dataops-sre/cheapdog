@@ -1,0 +1,17 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+
+  default:
+    cmds:
+      - echo 'try, task local.dev'
+    silent: true
+
+  local.dev:
+    summary: |
+      Run the app locally with docker-compose
+      eg. task local.dev
+    cmds:
+      - docker-compose up --remove-orphans --abort-on-container-exit --build datadog_agent
