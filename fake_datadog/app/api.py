@@ -5,12 +5,10 @@ import sys
 import zlib
 from os import path
 
-import monitoring
 import pymongo
 from flask import Flask, Response, jsonify, request
 
 app = application = Flask("datadoghq")
-monitoring.monitor_flask(app)
 handler = logging.StreamHandler(sys.stderr)
 app.logger.addHandler(handler)
 app.logger.setLevel("INFO")
@@ -67,7 +65,7 @@ def record_and_loads(filename: str, content_type: str, content_encoding: str, co
     content = "%s\n" % content if content[-1] != "\n" else content
     with open(path.join(record_dir, filename), "a") as f:
         f.write(content)
-
+    app.logger.info(f"data: {content}")
     return json.loads(content)
 
 
@@ -257,6 +255,10 @@ def orchestrator():
     # TODO
     return Response(status=200)
 
+@app.route("/api/v1/container", methods=["POST"])
+def container():
+    # TODO
+    return Response(status=200)
 
 @app.before_request
 def logging():
@@ -333,4 +335,4 @@ def not_found(_):
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", debug=True, port=5000)
+    app.run(host="0.0.0.0", debug=True, port=80)

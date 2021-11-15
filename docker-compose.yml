@@ -1,11 +1,41 @@
 #https://github.com/bitnami/bitnami-docker-mongodb/blob/master/docker-compose.yml
-version: '2'
+version: '3'
 
 services:
   mongodb:
     image: docker.io/bitnami/mongodb:4.4
     ports:
       - "27017:27017"
+
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.15.2
+    container_name: es01
+    environment:
+      discovery.type: single-node
+      cluster.name: es-docker-cluster
+      node.name: es01
+      bootstrap.memory_lock: "true"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data01:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  kib01:
+    image: docker.elastic.co/kibana/kibana:7.15.2
+    container_name: kib01
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_URL: http://es01:9200
+      ELASTICSEARCH_HOSTS: '["http://es01:9200"]'
 
   #for local development
   fake_datadog:
@@ -17,6 +47,18 @@ services:
       MONGODB_HOST: mongodb
     ports:
       - "5000:80"
+    volumes:
+      - './fake_datadog/app:/opt/fake_datadog'
+
+  # process.fake_datadog:
+  #   build:
+  #     context: ./process.fake_datadog
+  #   depends_on:
+  #     - mongodb
+  #   environment:
+  #     MONGODB_HOST: mongodb
+  #   ports:
+  #     - "5001:443"
 
   redis:
     image: redis
@@ -35,8 +77,13 @@ services:
      - DD_SITE=fake_datadog
      - DD_LOGS_ENABLED=false
      - DD_DD_URL=http://fake_datadog
+     - DD_PROCESS_AGENT_URL=http://process.fake_datadog
     volumes:
      - /var/run/docker.sock:/var/run/docker.sock
      - /proc/:/host/proc/:ro
      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+
+volumes:
+  data01:
+    driver: local
