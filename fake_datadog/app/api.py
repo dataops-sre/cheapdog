@@ -8,6 +8,9 @@ from os import path
 import pymongo
 from flask import Flask, Response, jsonify, request
 
+from datetime import datetime
+from elasticsearch import Elasticsearch,helpers
+
 app = application = Flask("datadoghq")
 handler = logging.StreamHandler(sys.stderr)
 app.logger.addHandler(handler)
@@ -17,6 +20,9 @@ record_dir = path.join(path.dirname(path.abspath(__file__)), "recorded")
 
 MONGODB_HOST = os.getenv("MONGODB_HOST", "127.0.0.1")
 
+ES_HOST = os.getenv("ES_HOST", "http://localhost:9200/")
+
+es = Elasticsearch([ES_HOST], http_compress=True)
 
 def get_collection(name: str):
     c = pymongo.MongoClient(MONGODB_HOST, 27017, connectTimeoutMS=5000)
@@ -31,6 +37,14 @@ payload_names = [
     "logs",
 ]
 
+#create indexes
+for p in payload_names:
+    es.indices.create(index=p, ignore=400)
+
+def es_bulk_insert(index, data):
+    bulk_data = ({'_type':'events', '_index':index, **d}
+                for d in data)
+    helpers.bulk(es,bulk_data)
 
 def reset_records():
     for elt in payload_names:
@@ -92,10 +106,12 @@ def fix_data(data):
     )
 
 
-def insert_series(data: dict):
-    coll = get_collection("series")
-    coll.insert_many(data["series"])
+# def insert_series(data: dict):
+#     coll = get_collection("series")
+#     coll.insert_many(data["series"])
 
+def insert_series(data: dict):
+    es_bulk_insert("series",data["series"])
 
 def insert_intake(data: dict):
     coll = get_collection("intake")
